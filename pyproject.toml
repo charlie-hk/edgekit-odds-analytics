@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edgekit"
+version = "0.1.0"
+description = "Odds analytics: devig, expected value, Kelly, arbitrage and closing line value."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+edgekit = "edgekit.cli:main"
+
+[tool.setuptools]
+packages = ["edgekit"]

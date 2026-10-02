@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EdgeKit: odds analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F2F4F6; --panel: #FFFFFF; --ink: #0F1E26; --muted: #55656F; --line: #D7DEE3;
+  --field: #F7F9FA;
+  --pos: #0B7F63; --pos-bg: rgba(14,143,111,.12); --pos-strong: rgba(14,143,111,.24);
+  --neg: #A93A43; --neg-bg: rgba(179,66,75,.09);
+  --vig: #9A5F05; --hatch: rgba(15,30,38,.34);
+  --focus: #2C5BFF;
+  --o0: #3562D9; --o1: #7A56C4; --o2: #1E87BC; --on-o: #FFFFFF;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0A1318; --panel: #101C23; --ink: #E4ECF0; --muted: #8DA0AB; --line: #21343E;
+    --field: #0C171D;
+    --pos: #38D3A8; --pos-bg: rgba(56,211,168,.13); --pos-strong: rgba(56,211,168,.26);
+    --neg: #EC7C84; --neg-bg: rgba(236,124,132,.11);
+    --vig: #E5AB45; --hatch: rgba(228,236,240,.38);
+    --focus: #7C98FF;
+    --o0: #4C79F0; --o1: #8F6FD8; --o2: #2C9BD0; --on-o: #FFFFFF;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0A1318; --panel: #101C23; --ink: #E4ECF0; --muted: #8DA0AB; --line: #21343E;
+  --field: #0C171D;
+  --pos: #38D3A8; --pos-bg: rgba(56,211,168,.13); --pos-strong: rgba(56,211,168,.26);
+  --neg: #EC7C84; --neg-bg: rgba(236,124,132,.11);
+  --vig: #E5AB45; --hatch: rgba(228,236,240,.38);
+  --focus: #7C98FF;
+  --o0: #4C79F0; --o1: #8F6FD8; --o2: #2C9BD0; --on-o: #FFFFFF;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 16px/1.5 "Schibsted Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums; font-feature-settings: "tnum";
+  -webkit-text-size-adjust: 100%;
+}
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 32px 20px 48px; }
+
+/* hero */
+h1 { margin: 0; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.05; letter-spacing: -0.03em; font-weight: 700; }
+.lede { margin: 10px 0 0; max-width: 46ch; color: var(--muted); font-size: 1.0625rem; }
+.ruler { display: grid; grid-template-columns: 6.5rem 1fr; gap: 14px; margin-top: 30px; }
+.names { display: grid; grid-template-rows: 48px 48px; row-gap: 10px; align-items: center; font-size: .875rem; color: var(--muted); }
+.tracks { position: relative; display: grid; row-gap: 10px; padding-bottom: 26px; }
+.track { position: relative; display: flex; height: 48px; border-radius: 8px; overflow: hidden; background: var(--line); }
+.seg { display: flex; align-items: center; min-width: 0; padding: 0 12px; overflow: hidden; white-space: nowrap;
+  color: var(--on-o); font-weight: 600; font-size: .9375rem; transition: width .3s ease; }
+.seg.o0 { background: var(--o0); } .seg.o1 { background: var(--o1); } .seg.o2 { background: var(--o2); }
+.seg.gap { background: repeating-linear-gradient(135deg, var(--hatch) 0 2px, transparent 2px 8px); color: var(--ink); font-weight: 500; font-size: .8125rem; padding-left: 10px; }
+.hatch { position: absolute; top: 0; bottom: 0; right: 0; pointer-events: none; transition: left .3s ease;
+  background: repeating-linear-gradient(135deg, var(--hatch) 0 2px, transparent 2px 8px); }
+.tick { position: absolute; top: -6px; bottom: 20px; width: 2px; background: var(--ink); transition: left .3s ease; }
+.tick span { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); padding-top: 3px; font-size: .75rem; color: var(--muted); white-space: nowrap; }
+.mtag { position: absolute; left: 0; bottom: 0; font-size: .75rem; color: var(--muted); }
+.summary { margin: 4px 0 0; min-height: 3em; max-width: 70ch; font-size: 1.0625rem; }
+.summary strong { font-weight: 600; }
+
+/* layout */
+.grid { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: 22px; margin-top: 30px; align-items: start; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+h2 { margin: 0 0 12px; font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; }
+.sec + .sec { margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--line); }
+.note { margin: 8px 0 0; color: var(--muted); font-size: .875rem; max-width: 62ch; }
+
+/* controls */
+.seg-ctl { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; padding: 3px; background: var(--field); }
+.seg-ctl label { position: relative; }
+.seg-ctl input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg-ctl span { display: block; padding: 7px 14px; border-radius: 6px; font-size: .9375rem; color: var(--muted); font-weight: 500; }
+.seg-ctl input:checked + span { background: var(--panel); color: var(--ink); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
+.seg-ctl input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 1px; }
+.row-ctl { display: flex; flex-wrap: wrap; gap: 14px 22px; margin-bottom: 20px; }
+.ctl-label { display: block; margin-bottom: 6px; font-size: .875rem; color: var(--muted); }
+.fields { display: grid; gap: 8px; }
+.line { display: grid; grid-template-columns: 6.4rem repeat(var(--n), minmax(0, 1fr)); gap: 8px; align-items: center; }
+.line .head { font-size: .8125rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+input[type="text"], input[type="number"], select {
+  width: 100%; height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--field); color: var(--ink); font: inherit; font-size: .9375rem; min-width: 0;
+}
+select { padding-right: 6px; }
+input[aria-invalid="true"] { border-color: var(--neg); background: var(--neg-bg); }
+.who { font-size: .9375rem; font-weight: 600; }
+.settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.settings .wide { grid-column: 1 / -1; }
+button { height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--field);
+  color: var(--ink); font: inherit; font-size: .9375rem; font-weight: 500; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+
+/* tables */
+.tbl-wrap { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+table { width: 100%; border-collapse: collapse; font-size: .9375rem; }
+th, td { padding: 9px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 500; color: var(--muted); font-size: .8125rem; }
+tbody tr:last-child td { border-bottom: 0; }
+th.sel, td.sel { background: var(--pos-bg); }
+th.sel { color: var(--ink); font-weight: 600; }
+td.edge { vertical-align: top; }
+td.edge .ev { display: block; font-weight: 600; }
+td.edge .meta { display: block; font-size: .8125rem; color: var(--muted); font-weight: 400; }
+td.edge.pos { background: var(--pos-bg); } td.edge.pos .ev { color: var(--pos); }
+td.edge.best { background: var(--pos-strong); box-shadow: inset 0 0 0 2px var(--pos); }
+td.edge.neg .ev { color: var(--neg); }
+td.edge.na { color: var(--muted); }
+.verdict { margin: 0 0 12px; font-size: 1.0625rem; }
+.verdict.good { color: var(--pos); font-weight: 600; }
+.clv { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.clv > div { min-width: 7rem; flex: 1 1 8rem; max-width: 12rem; }
+.big { margin: 14px 0 0; font-size: 1.0625rem; }
+.empty { padding: 28px 4px; color: var(--muted); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+footer { margin-top: 28px; color: var(--muted); font-size: .875rem; max-width: 80ch; }
+
+@media (max-width: 880px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .ruler { grid-template-columns: 4.6rem 1fr; gap: 10px; }
+  .seg { padding: 0 8px; font-size: .8125rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>EdgeKit</h1>
+    <p class="lede">Take the margin out of a sharp line, then check which prices beat it.</p>
+  </header>
+
+  <section aria-label="Margin ruler">
+    <div class="ruler" aria-hidden="true">
+      <div class="names"><span>Book prices</span><span>Fair prices</span></div>
+      <div class="tracks">
+        <div class="track" id="trackBook"></div>
+        <div class="track" id="trackFair"></div>
+        <div class="tick" id="tick"><span>100%</span></div>
+        <span class="mtag">hatched area is the margin</span>
+      </div>
+    </div>
+    <p class="summary" id="summary" aria-live="polite"></p>
+  </section>
+
+  <div class="grid">
+    <div class="panel" id="inputs">
+      <div class="row-ctl">
+        <div>
+          <span class="ctl-label" id="lblMarket">Market</span>
+          <div class="seg-ctl" role="radiogroup" aria-labelledby="lblMarket">
+            <label><input type="radio" name="market" value="2" checked><span>Two outcomes</span></label>
+            <label><input type="radio" name="market" value="3"><span>Three outcomes</span></label>
+          </div>
+        </div>
+        <div>
+          <span class="ctl-label" id="lblFmt">Odds format</span>
+          <div class="seg-ctl" role="radiogroup" aria-labelledby="lblFmt">
+            <label><input type="radio" name="fmt" value="decimal" checked><span>Decimal</span></label>
+            <label><input type="radio" name="fmt" value="american"><span>American</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>Sharp book odds</h2>
+        <div class="fields" id="sharpFields"></div>
+        <p class="note">Use the book you trust most. Its margin is removed to get the fair price.</p>
+      </div>
+
+      <div class="sec">
+        <h2>Books to compare</h2>
+        <div class="fields" id="bookFields"></div>
+      </div>
+
+      <div class="sec">
+        <h2>Settings</h2>
+        <div class="settings">
+          <div class="wide">
+            <label class="ctl-label" for="method">Margin removal method</label>
+            <select id="method">
+              <option value="power" selected>Power (recommended)</option>
+              <option value="shin">Shin</option>
+              <option value="multiplicative">Multiplicative</option>
+              <option value="additive">Additive</option>
+            </select>
+          </div>
+          <div>
+            <label class="ctl-label" for="bankroll">Bankroll</label>
+            <input type="number" id="bankroll" value="1000" min="0" step="any" inputmode="decimal">
+          </div>
+          <div>
+            <label class="ctl-label" for="kelly">Staking</label>
+            <select id="kelly">
+              <option value="0.1">Tenth Kelly</option>
+              <option value="0.25" selected>Quarter Kelly</option>
+              <option value="0.5">Half Kelly</option>
+              <option value="1">Full Kelly</option>
+            </select>
+          </div>
+          <div class="wide"><button type="button" id="reset">Reset example odds</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="results">
+      <div class="empty" id="emptyMsg" hidden>Fix the highlighted sharp odds to see results. Decimal odds must be above 1.00; American odds start at +100 or -100.</div>
+      <div id="sections">
+        <div class="sec">
+          <h2>Fair price</h2>
+          <div class="tbl-wrap" id="fairTable"></div>
+          <p class="note" id="fairNote"></p>
+        </div>
+        <div class="sec">
+          <h2>Edge by book</h2>
+          <div class="tbl-wrap" id="edgeTable"></div>
+          <p class="note">Edge is the expected profit per unit staked. Stakes follow the Kelly setting and only appear when the edge is positive.</p>
+        </div>
+        <div class="sec">
+          <h2>Arbitrage</h2>
+          <p class="verdict" id="arbVerdict"></p>
+          <div class="tbl-wrap" id="arbTable"></div>
+        </div>
+        <div class="sec">
+          <h2>Check a price you took</h2>
+          <div class="clv" id="clvBox"></div>
+          <p class="big" id="clvOut" aria-live="polite"></p>
+          <p class="note">Closing line value compares your price with the fair price of the sharp book. Treat the sharp odds above as the closing line.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Sample odds are invented. EdgeKit is an educational tool, not betting advice. It cannot predict results or promise profit. The same maths ships as a tested Python package.</footer>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+/* math:start */
+const sum = a => a.reduce((s, x) => s + x, 0);
+const implied = odds => odds.map(o => 1 / o);
+function multiplicative(odds) { const q = implied(odds), s = sum(q); return q.map(x => x / s); }
+function additive(odds) {
+  const q = implied(odds), cut = (sum(q) - 1) / q.length, p = q.map(x => x - cut);
+  return Math.min.apply(null, p) <= 0 ? null : p;
+}
+function power(odds) {
+  const q = implied(odds);
+  if (Math.abs(sum(q) - 1) < 1e-12) return q;
+  let lo = 0, hi = 200;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    let t = 0; for (const x of q) t += Math.pow(x, mid);
+    if (t > 1) lo = mid; else hi = mid;
+  }
+  const k = (lo + hi) / 2, p = q.map(x => Math.pow(x, k)), t = sum(p);
+  return p.map(x => x / t);
+}
+function shin(odds) {
+  const q = implied(odds), s = sum(q);
+  if (s <= 1) return q.map(x => x / s);
+  const probs = z => q.map(x => (Math.sqrt(z * z + 4 * (1 - z) * x * x / s) - z) / (2 * (1 - z)));
+  let lo = 0, hi = 0.999999;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    if (sum(probs(mid)) > 1) lo = mid; else hi = mid;
+  }
+  const p = probs((lo + hi) / 2), t = sum(p);
+  return p.map(x => x / t);
+}
+const METHODS = { multiplicative: multiplicative, additive: additive, power: power, shin: shin };
+const edgeOf = (p, o) => p * o - 1;
+const kellyFraction = (p, o) => Math.max(edgeOf(p, o) / (o - 1), 0);
+function arbitrage(best, bankroll) {
+  const inv = sum(best.map(o => 1 / o));
+  if (inv >= 1) return null;
+  const payout = bankroll / inv;
+  return { margin: 1 / inv - 1, stakes: best.map(o => bankroll * (1 / o) / inv), payout: payout, profit: payout - bankroll };
+}
+function toDecimal(text, fmt) {
+  const t = String(text).trim().replace(',', '.').replace('\u2212', '-');
+  if (t === '') return NaN;
+  const v = Number(t);
+  if (!Number.isFinite(v)) return NaN;
+  if (fmt === 'american') {
+    if (!Number.isInteger(v) || Math.abs(v) < 100) return NaN;
+    return v > 0 ? v / 100 + 1 : 100 / Math.abs(v) + 1;
+  }
+  return v > 1 ? v : NaN;
+}
+function fromDecimal(dec, fmt) {
+  if (!Number.isFinite(dec)) return '';
+  if (fmt === 'american') {
+    const a = dec >= 2 ? Math.round((dec - 1) * 100) : -Math.round(100 / (dec - 1));
+    return (a > 0 ? '+' : '') + a;
+  }
+  return (Math.round(dec * 1000) / 1000).toFixed(3).replace(/(\.\d\d)0$/, '$1');
+}
+/* math:end */
+
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const MINUS = '\u2212';
+const pct1 = x => (x * 100).toFixed(1) + '%';
+const pct2 = x => (x * 100).toFixed(2) + '%';
+const signed = x => (x >= 0 ? '+' : MINUS) + Math.abs(x * 100).toFixed(1) + '%';
+const money = x => x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const oddsDisp = dec => S.fmt === 'american' ? fromDecimal(dec, 'american') : dec.toFixed(2);
+const METHOD_NAMES = { multiplicative: 'Multiplicative', additive: 'Additive', power: 'Power', shin: 'Shin' };
+
+const DEFAULTS = {
+  2: { labels: ['Player A', 'Player B'], sharp: [1.62, 2.40],
+       books: [['Book A', [1.70, 2.25]], ['Book B', [1.58, 2.52]], ['Book C', [1.66, 2.30]]], clv: { o: 0, price: 1.70 } },
+  3: { labels: ['Home', 'Draw', 'Away'], sharp: [2.10, 3.40, 3.60],
+       books: [['Book A', [2.18, 3.30, 3.50]], ['Book B', [2.05, 3.35, 3.80]], ['Book C', [2.12, 3.45, 3.95]]], clv: { o: 0, price: 2.18 } }
+};
+const S = { fmt: 'decimal', n: 2, method: 'power', bankroll: 1000, kelly: 0.25, sharp: [], books: [], clv: { o: 0, price: 1.7 } };
+
+function loadDefaults(n) {
+  const d = DEFAULTS[n];
+  S.n = n;
+  S.sharp = d.sharp.slice();
+  S.books = d.books.map(function (b) { return { name: b[0], odds: b[1].slice() }; });
+  S.clv = { o: d.clv.o, price: d.clv.price };
+}
+
+function oddsInput(kind, i, j, value, label) {
+  return '<input type="text" inputmode="decimal" autocomplete="off" spellcheck="false" data-k="' + kind + '" data-i="' + i +
+         '" data-j="' + j + '" value="' + esc(fromDecimal(value, S.fmt)) + '" aria-label="' + esc(label) + '">';
+}
+
+function renderInputs() {
+  const labels = DEFAULTS[S.n].labels;
+  const n = S.n;
+  const head = '<div class="line" style="--n:' + n + '"><span></span>' +
+    labels.map(function (l) { return '<span class="head">' + esc(l) + '</span>'; }).join('') + '</div>';
+  const sharpRow = '<div class="line" style="--n:' + n + '"><span class="who">Sharp</span>' +
+    S.sharp.map(function (v, j) { return oddsInput('sharp', 0, j, v, 'Sharp book odds for ' + labels[j]); }).join('') + '</div>';
+  $('#sharpFields').innerHTML = head + sharpRow;
+
+  const rows = S.books.map(function (b, i) {
+    return '<div class="line" style="--n:' + n + '"><input type="text" data-k="bname" data-i="' + i + '" value="' + esc(b.name) +
+      '" maxlength="14" aria-label="Name of book ' + (i + 1) + '" autocomplete="off">' +
+      b.odds.map(function (v, j) { return oddsInput('book', i, j, v, b.name + ' odds for ' + labels[j]); }).join('') + '</div>';
+  }).join('');
+  $('#bookFields').innerHTML = head + rows;
+
+  $('#clvBox').innerHTML =
+    '<div><label class="ctl-label" for="clvOutcome">Outcome you bet</label><select id="clvOutcome">' +
+    labels.map(function (l, j) { return '<option value="' + j + '"' + (j === S.clv.o ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('') +
+    '</select></div><div><label class="ctl-label" for="clvPrice">Price you took</label>' +
+    '<input type="text" inputmode="decimal" autocomplete="off" id="clvPrice" data-k="clv" value="' + esc(fromDecimal(S.clv.price, S.fmt)) + '"></div>';
+
+  buildRuler();
+}
+
+function buildRuler() {
+  const n = S.n;
+  let book = '', fair = '';
+  for (let j = 0; j < n; j++) { book += '<div class="seg o' + j + '" data-seg="b' + j + '"></div>'; fair += '<div class="seg o' + j + '" data-seg="f' + j + '"></div>'; }
+  $('#trackBook').innerHTML = book + '<div class="hatch" id="hatchBook"></div>';
+  $('#trackFair').innerHTML = fair + '<div class="seg gap" id="gapFair"></div>';
+}
+
+function setSeg(el, width, text, trackPx) {
+  el.style.width = width + '%';
+  const px = trackPx * width / 100;
+  el.textContent = px >= text.full.length * 8.6 + 26 ? text.full : (px >= text.short.length * 8.6 + 22 ? text.short : '');
+  el.title = text.full;
+}
+
+function arbRows(labels, pool) {
+  return labels.map(function (l, j) {
+    let best = null;
+    pool.forEach(function (b) {
+      const o = b.odds[j];
+      if (o > 1 && (!best || o > best.o)) best = { o: o, book: b.name };
+    });
+    return { label: l, o: best.o, book: best.book };
+  });
+}
+
+function update() {
+  const labels = DEFAULTS[S.n].labels;
+  const sharp = S.sharp;
+  const ok = sharp.every(function (o) { return o > 1; });
+  $('#emptyMsg').hidden = ok;
+  $('#sections').hidden = !ok;
+  if (!ok) { $('#summary').textContent = 'Enter valid sharp odds to see the margin.'; return; }
+
+  const q = implied(sharp), S1 = sum(q), margin = S1 - 1;
+  const all = {};
+  Object.keys(METHODS).forEach(function (k) { all[k] = METHODS[k](sharp); });
+  let fair = all[S.method], note = '';
+  if (!fair) { fair = all.power; note = 'The additive method cannot handle this market because one probability would turn negative, so power is used instead.'; }
+  const used = all[S.method] ? S.method : 'power';
+
+  /* ruler */
+  const tickPct = 100 / S1;
+  $('#tick').style.left = 'calc(' + tickPct + '% - 1px)';
+  const hb = $('#hatchBook'); if (hb) hb.style.left = tickPct + '%';
+  const trackPx = $('#trackBook').clientWidth || 600;
+  labels.forEach(function (l, j) {
+    const b = document.querySelector('[data-seg="b' + j + '"]');
+    const f = document.querySelector('[data-seg="f' + j + '"]');
+    if (b) setSeg(b, q[j] / S1 * 100, { full: l + ' ' + pct1(q[j]), short: pct1(q[j]) }, trackPx);
+    if (f) setSeg(f, fair[j] / S1 * 100, { full: l + ' ' + pct1(fair[j]), short: pct1(fair[j]) }, trackPx);
+  });
+  const gap = $('#gapFair');
+  if (gap) {
+    const gw = 100 - 100 / S1;
+    gap.style.width = gw + '%';
+    gap.textContent = trackPx * gw / 100 >= 110 ? 'margin ' + pct1(margin) : '';
+    gap.title = 'Margin removed: ' + pct2(margin);
+  }
+  $('#summary').innerHTML = 'The sharp book keeps a <strong>' + pct2(margin) + '</strong> margin. Fair chances (' + METHOD_NAMES[used].toLowerCase() + '): ' +
+    labels.map(function (l, j) { return '<strong>' + esc(l) + '</strong> ' + pct1(fair[j]); }).join(', ') + '.';
+
+  /* fair table */
+  const cols = ['multiplicative', 'additive', 'power', 'shin'];
+  let t = '<table><thead><tr><th>Outcome</th><th>Book price</th><th>Implied</th>' +
+    cols.map(function (c) { return '<th class="' + (c === used ? 'sel' : '') + '">' + METHOD_NAMES[c] + '</th>'; }).join('') + '<th>Fair odds</th></tr></thead><tbody>';
+  labels.forEach(function (l, j) {
+    t += '<tr><td>' + esc(l) + '</td><td>' + esc(fromDecimal(sharp[j], S.fmt)) + '</td><td>' + pct1(q[j]) + '</td>' +
+      cols.map(function (c) { return '<td class="' + (c === used ? 'sel' : '') + '">' + (all[c] ? pct1(all[c][j]) : 'n/a') + '</td>'; }).join('') +
+      '<td>' + esc(oddsDisp(1 / fair[j])) + '</td></tr>';
+  });
+  $('#fairTable').innerHTML = t + '</tbody></table>';
+  $('#fairNote').textContent = note || ('Edges below use the ' + METHOD_NAMES[used].toLowerCase() + ' method. The other columns show how much the methods disagree.');
+
+  /* edge table */
+  const bankroll = Number.isFinite(S.bankroll) && S.bankroll > 0 ? S.bankroll : 0;
+  let bestE = 0;
+  S.books.forEach(function (b) { b.odds.forEach(function (o, j) { if (o > 1) { const e = edgeOf(fair[j], o); if (e > bestE) bestE = e; } }); });
+  let et = '<table><thead><tr><th>Book</th>' + labels.map(function (l) { return '<th>' + esc(l) + '</th>'; }).join('') + '</tr></thead><tbody>';
+  S.books.forEach(function (b) {
+    et += '<tr><td>' + esc(b.name || 'Book') + '</td>';
+    b.odds.forEach(function (o, j) {
+      if (!(o > 1)) { et += '<td class="edge na">invalid odds</td>'; return; }
+      const e = edgeOf(fair[j], o);
+      const cls = e > 0 ? (e === bestE ? 'pos best' : 'pos') : 'neg';
+      const stake = bankroll * kellyFraction(fair[j], o) * S.kelly;
+      et += '<td class="edge ' + cls + '"><span class="ev">' + signed(e) + '</span><span class="meta">at ' + esc(fromDecimal(o, S.fmt)) + '</span>' +
+        (e > 0 ? '<span class="meta">stake ' + money(stake) + '</span>' : '') + '</td>';
+    });
+    et += '</tr>';
+  });
+  $('#edgeTable').innerHTML = et + '</tbody></table>';
+
+  /* arbitrage */
+  const pool = [{ name: 'Sharp', odds: sharp }].concat(S.books);
+  const best = arbRows(labels, pool);
+  const arb = arbitrage(best.map(function (b) { return b.o; }), bankroll);
+  const invSum = sum(best.map(function (b) { return 1 / b.o; }));
+  const v = $('#arbVerdict');
+  if (arb) {
+    v.className = 'verdict good';
+    v.textContent = 'Arbitrage found: ' + pct2(arb.margin) + ' locked in. ' + money(arb.profit) + ' profit on a ' + money(bankroll) + ' bankroll.';
+  } else {
+    v.className = 'verdict';
+    v.textContent = 'No arbitrage. The best prices imply ' + pct2(invSum) + ' in total, and anything under 100% locks in a profit.';
+  }
+  let at = '<table><thead><tr><th>Outcome</th><th>Best price</th><th>Book</th>' + (arb ? '<th>Stake</th>' : '') + '</tr></thead><tbody>';
+  best.forEach(function (b, j) {
+    at += '<tr><td>' + esc(b.label) + '</td><td>' + esc(fromDecimal(b.o, S.fmt)) + '</td><td>' + esc(b.book) + '</td>' + (arb ? '<td>' + money(arb.stakes[j]) + '</td>' : '') + '</tr>';
+  });
+  $('#arbTable').innerHTML = at + '</tbody></table>';
+
+  /* closing line value */
+  const out = $('#clvOut');
+  const price = S.clv.price;
+  if (price > 1) {
+    const c = price * fair[S.clv.o] - 1;
+    out.innerHTML = 'Closing line value: <strong style="color:var(--' + (c >= 0 ? 'pos' : 'neg') + ')">' + signed(c) + '</strong>. ' +
+      (c >= 0 ? 'You beat the fair price.' : 'The fair price was better than yours.');
+  } else {
+    out.textContent = 'Enter a valid price to see closing line value.';
+  }
+}
+
+/* events */
+$('#inputs').addEventListener('input', function (e) {
+  const t = e.target, k = t.dataset.k;
+  if (t.id === 'bankroll') {
+    const v = parseFloat(t.value);
+    S.bankroll = Number.isFinite(v) && v >= 0 ? v : NaN;
+    t.setAttribute('aria-invalid', Number.isNaN(S.bankroll) ? 'true' : 'false');
+    update(); return;
+  }
+  if (!k) return;
+  if (k === 'bname') { S.books[+t.dataset.i].name = t.value; update(); return; }
+  const dec = toDecimal(t.value, S.fmt);
+  t.setAttribute('aria-invalid', Number.isNaN(dec) ? 'true' : 'false');
+  if (k === 'sharp') S.sharp[+t.dataset.j] = dec;
+  else if (k === 'book') S.books[+t.dataset.i].odds[+t.dataset.j] = dec;
+  update();
+});
+$('#results').addEventListener('input', function (e) {
+  if (e.target.id === 'clvPrice') {
+    const dec = toDecimal(e.target.value, S.fmt);
+    e.target.setAttribute('aria-invalid', Number.isNaN(dec) ? 'true' : 'false');
+    S.clv.price = dec; update();
+  }
+});
+$('#results').addEventListener('change', function (e) {
+  if (e.target.id === 'clvOutcome') { S.clv.o = +e.target.value; update(); }
+});
+document.querySelectorAll('input[name="market"]').forEach(function (r) {
+  r.addEventListener('change', function () { if (r.checked) { loadDefaults(+r.value); renderInputs(); update(); } });
+});
+document.querySelectorAll('input[name="fmt"]').forEach(function (r) {
+  r.addEventListener('change', function () { if (r.checked) { S.fmt = r.value; renderInputs(); update(); } });
+});
+$('#method').addEventListener('change', function (e) { S.method = e.target.value; update(); });
+$('#kelly').addEventListener('change', function (e) { S.kelly = parseFloat(e.target.value); update(); });
+$('#reset').addEventListener('click', function () { loadDefaults(S.n); renderInputs(); update(); });
+
+loadDefaults(2);
+renderInputs();
+update();
+window.addEventListener('resize', update);
+})();
+</script>
+</body>
+</html>

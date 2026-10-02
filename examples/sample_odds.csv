@@ -1,0 +1,20 @@
+event,market,outcome,book,odds
+Sample Open R1: A vs B,Match winner,A,SharpBook,1.62
+Sample Open R1: A vs B,Match winner,B,SharpBook,2.40
+Sample Open R1: A vs B,Match winner,A,SoftBook1,1.70
+Sample Open R1: A vs B,Match winner,B,SoftBook1,2.25
+Sample Open R1: A vs B,Match winner,A,SoftBook2,1.58
+Sample Open R1: A vs B,Match winner,B,SoftBook2,2.52
+Sample League: Home vs Away,Full time 1X2,Home,SharpBook,2.10
+Sample League: Home vs Away,Full time 1X2,Draw,SharpBook,3.40
+Sample League: Home vs Away,Full time 1X2,Away,SharpBook,3.60
+Sample League: Home vs Away,Full time 1X2,Home,SoftBook1,2.18
+Sample League: Home vs Away,Full time 1X2,Draw,SoftBook1,3.30
+Sample League: Home vs Away,Full time 1X2,Away,SoftBook1,3.50
+Sample League: Home vs Away,Full time 1X2,Home,SoftBook2,2.05
+Sample League: Home vs Away,Full time 1X2,Draw,SoftBook2,3.55
+Sample League: Home vs Away,Full time 1X2,Away,SoftBook2,3.75
+Sample Darts: X vs Y,Match winner,X,SharpBook,1.85
+Sample Darts: X vs Y,Match winner,Y,SharpBook,2.00
+Sample Darts: X vs Y,Match winner,X,SoftBook1,2.10
+Sample Darts: X vs Y,Match winner,Y,SoftBook1,1.80
